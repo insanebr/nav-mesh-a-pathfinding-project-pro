@@ -1,10 +1,5 @@
 {
-    "author": {
-        "email": "aron.granberg+astar@gmail.com",
-        "name": "Aron Granberg",
-        "url": "https://www.arongranberg.com"
-    },
-    "changelogUrl": "https://arongranberg.com/astar/documentation/stable/changelog.html",
+	"changelogUrl": "https://arongranberg.com/astar/documentation/stable/changelog.html",
     "dependencies": {
         "com.unity.burst": "1.8.7",
         "com.unity.collections": "1.5.1",
@@ -33,9 +28,7 @@
         "planning",
         "a*"
     ],
-    "name": "com.arongranberg.astar",
-    "publishConfig": {
-        "registry": "https://arongranberg.com/packages_forward/"
+    "name": "com.insane.astar",
     },
     "samples": [
         {
