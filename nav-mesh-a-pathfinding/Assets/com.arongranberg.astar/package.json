@@ -1,5 +1,5 @@
 {
-	"changelogUrl": "https://arongranberg.com/astar/documentation/stable/changelog.html",
+    "changelogUrl": "https://arongranberg.com/astar/documentation/stable/changelog.html",
     "dependencies": {
         "com.unity.burst": "1.8.7",
         "com.unity.collections": "1.5.1",
@@ -29,7 +29,6 @@
         "a*"
     ],
     "name": "com.insane.astar",
-    },
     "samples": [
         {
             "description": "Additional examples",
