@@ -216,7 +216,7 @@ namespace Pathfinding {
 	[UniqueComponent(tag = "ai")]
 	[UniqueComponent(tag = "rvo")]
 	[DisallowMultipleComponent]
-	public sealed partial class FollowerEntity : VersionedMonoBehaviour, IAstarAI, ISerializationCallbackReceiver {
+	public class FollowerEntity : VersionedMonoBehaviour, IAstarAI, ISerializationCallbackReceiver {
 		[SerializeField]
 		AgentCylinderShape shape = new AgentCylinderShape {
 			height = 2,
@@ -308,36 +308,15 @@ namespace Pathfinding {
 		static EntityArchetype archetype;
 		static World achetypeWorld;
 
-#if !UNITY_2023_1_OR_NEWER
-		bool didStart;
-#endif
-
-		void OnEnable () {
-			scratchReferenceCount++;
-			FindComponents();
-			entity = CreateEntity(tr.position, tr.rotation, tr.localScale.x, ref shape, ref movement, ref autoRepathBacking, managedState, orientationBacking, movementPlaneSourceBacking, syncPosition, syncRotation, PhysicsSceneExtensions.GetPhysicsScene(gameObject.scene));
-
-			// Register with the BatchedEvents system
-			// This is used not for the events, but because it keeps track of a TransformAccessArray
-			// of all components. This is then used by the SyncTransformsToEntitiesSystem.
-			BatchedEvents.Add(this, BatchedEvents.Event.None, (components, ev) => {});
-
-			var runtimeBakers = GetComponents<IRuntimeBaker>();
-			for (int i = 0; i < runtimeBakers.Length; i++) if (((MonoBehaviour)runtimeBakers[i]).enabled) runtimeBakers[i].OnCreatedEntity(World.DefaultGameObjectInjectionWorld, entity);
-
-			// Make sure Start runs every time after OnEnable.
-			// When the game starts we don't want it to run immediately, because the graphs may not be scanned.
-			// But if the component is enabled at some later point in the game, it can run at the same time as OnEnable.
-			if (didStart) Start();
-		}
+		protected World _world;
 
 		/// <summary>
 		/// Creates an entity with the given data.
 		///
 		/// If you don't want to use the FollowerEntity MonoBehaviour, you can use this method to create an equivalent entity directly.
 		/// </summary>
-		public static Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
-			var world = World.DefaultGameObjectInjectionWorld;
+		public Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
+			var world = _world ?? World.DefaultGameObjectInjectionWorld;
 			if (!archetype.Valid || achetypeWorld != world) {
 				if (world == null) throw new Exception("World.DefaultGameObjectInjectionWorld is null. Has the world been destroyed?");
 				achetypeWorld = world;
@@ -423,10 +402,32 @@ namespace Pathfinding {
 		/// <summary>Cached NNConstraint, to avoid allocations</summary>
 		static NNConstraint ScratchNNConstraint = NNConstraint.Walkable;
 
+		// Make sure Start runs every time after OnBeforeStart.
+		// When the game starts we don't want it to run immediately, because the graphs may not be scanned.
+		// But if the component is enabled at some later point in the game, it can run at the same time as OnEnable.
+		private void OnBeforeStart()
+		{
+			scratchReferenceCount++;
+			FindComponents();
+			entity = CreateEntity(tr.position, tr.rotation, tr.localScale.x, ref shape, ref movement,
+				ref autoRepathBacking, managedState, orientationBacking, movementPlaneSourceBacking, syncPosition,
+				syncRotation, PhysicsSceneExtensions.GetPhysicsScene(gameObject.scene));
+
+			// Register with the BatchedEvents system
+			// This is used not for the events, but because it keeps track of a TransformAccessArray
+			// of all components. This is then used by the SyncTransformsToEntitiesSystem.
+			BatchedEvents.Add(this, BatchedEvents.Event.None, (components, ev) => { });
+
+			var runtimeBakers = GetComponents<IRuntimeBaker>();
+			for (int i = 0; i < runtimeBakers.Length; i++)
+				if (((MonoBehaviour)runtimeBakers[i]).enabled)
+					runtimeBakers[i].OnCreatedEntity(World.DefaultGameObjectInjectionWorld, entity);
+		}
+
 		void Start () {
-#if !UNITY_2023_1_OR_NEWER
-			didStart = true;
-#endif
+
+			OnBeforeStart();
+
 			var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
 			managedStateAccessRW.Update(entityManager);
 			movementPlaneAccessRW.Update(entityManager);
