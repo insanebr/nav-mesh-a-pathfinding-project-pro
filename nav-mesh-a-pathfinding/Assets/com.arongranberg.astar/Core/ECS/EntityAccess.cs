@@ -49,7 +49,7 @@ namespace Pathfinding.ECS {
 		public bool Update (World world, Entity entity, out EntityManager entityManager, out EntityStorageInfo storage) {
 			entityManager = default;
 			storage = this.storage;
-			if (world == null) return false;
+			if (world == null || world.IsCreated == false) return false;
 			entityManager = world.EntityManager;
 			// We must use entityManager.EntityOrderVersion here, not GlobalSystemVersion, because
 			// the GlobalSystemVersion does not necessarily update when structural changes happen.

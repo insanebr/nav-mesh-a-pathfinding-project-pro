@@ -224,7 +224,7 @@ namespace Pathfinding {
 			PropertyField("managedState.rvoSettings.debug", "Local Avoidance Debug Rendering");
 			DebugInspector();
 
-			if (EditorGUI.EndChangeCheck()) {
+			if (EditorGUI.EndChangeCheck() && Application.isPlaying) {
 				for (int i = 0; i < targets.Length; i++) {
 					var script = targets[i] as FollowerEntity;
 					script.SyncWithEntity();

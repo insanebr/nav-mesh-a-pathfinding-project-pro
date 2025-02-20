@@ -308,17 +308,23 @@ namespace Pathfinding {
 		static EntityArchetype archetype;
 		static World achetypeWorld;
 
-		protected World _world;
+		protected static World _world;
 
 		/// <summary>
 		/// Creates an entity with the given data.
 		///
 		/// If you don't want to use the FollowerEntity MonoBehaviour, you can use this method to create an equivalent entity directly.
 		/// </summary>
-		public Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
-			var world = _world ?? World.DefaultGameObjectInjectionWorld;
+		public static Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
+			// Keeping 'World.DefaultGameObjectInjectionWorld' initialization to tests in AStar repository.
+			if (_world == null)
+			{
+				_world = World.DefaultGameObjectInjectionWorld;
+			}
+
+			var world = _world;
 			if (!archetype.Valid || achetypeWorld != world) {
-				if (world == null) throw new Exception("World.DefaultGameObjectInjectionWorld is null. Has the world been destroyed?");
+				if (world == null) throw new Exception("World is null. Has the world been destroyed?");
 				achetypeWorld = world;
 				archetype = world.EntityManager.CreateArchetype(
 					typeof(LocalTransform),
@@ -396,7 +402,7 @@ namespace Pathfinding {
 		}
 
 		internal void RegisterRuntimeBaker (IRuntimeBaker baker) {
-			if (entityExists) baker.OnCreatedEntity(World.DefaultGameObjectInjectionWorld, entity);
+			if (entityExists) baker.OnCreatedEntity(_world, entity);
 		}
 
 		/// <summary>Cached NNConstraint, to avoid allocations</summary>
@@ -421,14 +427,14 @@ namespace Pathfinding {
 			var runtimeBakers = GetComponents<IRuntimeBaker>();
 			for (int i = 0; i < runtimeBakers.Length; i++)
 				if (((MonoBehaviour)runtimeBakers[i]).enabled)
-					runtimeBakers[i].OnCreatedEntity(World.DefaultGameObjectInjectionWorld, entity);
+					runtimeBakers[i].OnCreatedEntity(_world, entity);
 		}
 
-		void Start () {
-
+		void Start ()
+		{
 			OnBeforeStart();
 
-			var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+			var entityManager = _world.EntityManager;
 			managedStateAccessRW.Update(entityManager);
 			movementPlaneAccessRW.Update(entityManager);
 			resolvedMovementAccessRW.Update(entityManager);
@@ -491,7 +497,7 @@ namespace Pathfinding {
 
 			BatchedEvents.Remove(this);
 			CancelCurrentPathRequest();
-			if (World.DefaultGameObjectInjectionWorld != null && World.DefaultGameObjectInjectionWorld.IsCreated) World.DefaultGameObjectInjectionWorld.EntityManager.DestroyEntity(entity);
+			if (_world != null && _world.IsCreated) _world.EntityManager.DestroyEntity(entity);
 			// Make sure the managed state gets disposed, even if no entity exists. If an entity exists, this will be automatically called.
 			managedState.Dispose();
 
@@ -569,7 +575,7 @@ namespace Pathfinding {
 				}
 			}
 			set {
-				if (entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) {
+				if (entityStorageCache.Update(_world, entity, out var entityManager, out var storage)) {
 					// Update path and other properties using our new position
 					if (entityManager.HasComponent<SyncPositionWithTransform>(entity)) {
 						transform.position = value;
@@ -637,7 +643,7 @@ namespace Pathfinding {
 			get {
 				if (!entityExists) return false;
 
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				return entityManager.HasComponent<AgentOffMeshLinkTraversal>(entity);
 			}
 		}
@@ -656,7 +662,7 @@ namespace Pathfinding {
 		/// </summary>
 		public OffMeshLinks.OffMeshLinkTracer offMeshLink {
 			get {
-				if (entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage) && entityManager.HasComponent<AgentOffMeshLinkTraversal>(entity)) {
+				if (entityStorageCache.Update(_world, entity, out var entityManager, out var storage) && entityManager.HasComponent<AgentOffMeshLinkTraversal>(entity)) {
 					agentOffMeshLinkTraversalRO.Update(entityManager);
 					var linkTraversal = agentOffMeshLinkTraversalRO[storage];
 					var linkTraversalManaged = entityManager.GetComponentData<ManagedAgentOffMeshLinkTraversal>(entity);
@@ -764,7 +770,7 @@ namespace Pathfinding {
 			get {
 				if (!entityExists) return null;
 
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				// Complete any job dependencies
 				managedStateAccessRO.Update(entityManager);
 				var node = managedState.pathTracer.startNode;
@@ -798,7 +804,7 @@ namespace Pathfinding {
 				}
 			}
 			set {
-				if (entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) {
+				if (entityStorageCache.Update(_world, entity, out var entityManager, out var storage)) {
 					// Update path and other properties using our new position
 					if (entityManager.HasComponent<SyncRotationWithTransform>(entity)) {
 						transform.rotation = value;
@@ -830,7 +836,7 @@ namespace Pathfinding {
 			set {
 				movementPlaneSourceBacking = value;
 				if (entityExists) {
-					var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+					var entityManager = _world.EntityManager;
 					entityManager.SetSharedComponent(entity, new AgentMovementPlaneSource { value = value });
 				}
 			}
@@ -918,7 +924,7 @@ namespace Pathfinding {
 		/// </summary>
 		public Vector3 velocity {
 			get {
-				return entityExists ? (Vector3)World.DefaultGameObjectInjectionWorld.EntityManager.GetComponentData<MovementStatistics>(entity).estimatedVelocity : Vector3.zero;
+				return entityExists ? (Vector3)_world.EntityManager.GetComponentData<MovementStatistics>(entity).estimatedVelocity : Vector3.zero;
 			}
 			set {
 				if (entityStorageCache.GetComponentData(entity, ref movementStatisticsAccessRW, out var statistics)) {
@@ -971,7 +977,7 @@ namespace Pathfinding {
 		/// </summary>
 		public float remainingDistance {
 			get {
-				if (!entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) return float.PositiveInfinity;
+				if (!entityStorageCache.Update(_world, entity, out var entityManager, out var storage)) return float.PositiveInfinity;
 
 				movementStateAccessRO.Update(entityManager);
 				managedStateAccessRO.Update(entityManager);
@@ -1087,7 +1093,7 @@ namespace Pathfinding {
 			get {
 				if (entityExists) {
 					// Make sure we block to ensure no managed state changes are made in jobs while we are reading from it
-					managedStateAccessRO.Update(World.DefaultGameObjectInjectionWorld.EntityManager);
+					managedStateAccessRO.Update(_world.EntityManager);
 					if (hasPath) return managedState.pathTracer.endPoint;
 					var d = destination;
 					if (float.IsFinite(d.x)) return d;
@@ -1177,7 +1183,7 @@ namespace Pathfinding {
 		/// </summary>
 		public void SetDestination (float3 destination, float3 facingDirection = default) {
 			AssertEntityExists();
-			var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+			var entityManager = _world.EntityManager;
 			movementStateAccessRW.Update(entityManager);
 			managedStateAccessRW.Update(entityManager);
 			agentCylinderShapeAccessRO.Update(entityManager);
@@ -1286,7 +1292,7 @@ namespace Pathfinding {
 			get {
 				if (!entityExists) return true;
 
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				return entityManager.HasComponent<SimulateMovement>(entity);
 			}
 			set => ToggleComponent<SimulateMovement>(entity, value, true);
@@ -1309,7 +1315,7 @@ namespace Pathfinding {
 			get {
 				if (!entityExists) return managedState.enableGravity;
 
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				return entityManager.HasComponent<GravityState>(entity);
 			}
 			set {
@@ -1393,7 +1399,7 @@ namespace Pathfinding {
 
 		/// <summary>Adds or removes a component from an entity</summary>
 		static void ToggleComponent<T>(Entity entity, bool enabled, bool mustExist) where T : struct, IComponentData {
-			var world = World.DefaultGameObjectInjectionWorld;
+			var world = _world;
 			if (world == null || !world.EntityManager.Exists(entity)) {
 				if (!mustExist) throw new System.InvalidOperationException("Entity does not exist. You can only access this if the component is active and enabled.");
 				return;
@@ -1407,7 +1413,7 @@ namespace Pathfinding {
 
 		/// <summary>Enables or disables a component on an entity</summary>
 		static void ToggleComponentEnabled<T>(Entity entity, bool enabled, bool mustExist) where T : struct, IComponentData, IEnableableComponent {
-			var world = World.DefaultGameObjectInjectionWorld;
+			var world = _world;
 			if (world == null || !world.EntityManager.Exists(entity)) {
 				if (!mustExist) throw new System.InvalidOperationException("Entity does not exist. You can only access this if the component is active and enabled.");
 				return;
@@ -1425,7 +1431,7 @@ namespace Pathfinding {
 		public bool hasPath {
 			get {
 				// Ensure no jobs are writing to the managed state while we are reading from it
-				if (entityExists) managedStateAccessRO.Update(World.DefaultGameObjectInjectionWorld.EntityManager);
+				if (entityExists) managedStateAccessRO.Update(_world.EntityManager);
 				return !managedState.pathTracer.isStale;
 			}
 		}
@@ -1434,7 +1440,7 @@ namespace Pathfinding {
 		public bool pathPending {
 			get {
 				if (!entityExists) return false;
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				managedStateAccessRO.Update(entityManager);
 				return managedState.pendingPath != null;
 			}
@@ -1565,7 +1571,7 @@ namespace Pathfinding {
 		///
 		/// Note: This API is unstable. It may change in future versions.
 		/// </summary>
-		public ManagedMovementOverrides movementOverrides => new ManagedMovementOverrides(entity, World.DefaultGameObjectInjectionWorld);
+		public ManagedMovementOverrides movementOverrides => new ManagedMovementOverrides(entity, _world);
 
 		/// <summary>\copydoc Pathfinding::IAstarAI::FinalizeMovement</summary>
 		void IAstarAI.FinalizeMovement (Vector3 nextPosition, Quaternion nextRotation) {
@@ -1626,7 +1632,7 @@ namespace Pathfinding {
 				return;
 			}
 
-			var ms = World.DefaultGameObjectInjectionWorld.EntityManager.GetComponentData<ManagedState>(entity);
+			var ms = _world.EntityManager.GetComponentData<ManagedState>(entity);
 			stale = false;
 			if (ms.pathTracer.hasPath) {
 				var nativeBuffer = new NativeList<float3>(Allocator.Temp);
@@ -1689,7 +1695,7 @@ namespace Pathfinding {
 		}
 
 		void AssertEntityExists () {
-			if (World.DefaultGameObjectInjectionWorld == null || !World.DefaultGameObjectInjectionWorld.EntityManager.Exists(entity)) throw new System.InvalidOperationException("Entity does not exist. You can only access this if the component is active and enabled.");
+			if (_world == null || !_world.EntityManager.Exists(entity)) throw new System.InvalidOperationException("Entity does not exist. You can only access this if the component is active and enabled.");
 		}
 
 		/// <summary>
@@ -1699,11 +1705,11 @@ namespace Pathfinding {
 		///
 		/// See: <see cref="entity"/>
 		/// </summary>
-		public bool entityExists => World.DefaultGameObjectInjectionWorld != null && World.DefaultGameObjectInjectionWorld.EntityManager.Exists(entity);
+		public bool entityExists => _world != null && _world.IsCreated && _world.EntityManager.Exists(entity);
 
 		void CancelCurrentPathRequest () {
 			if (entityExists) {
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				managedStateAccessRW.Update(entityManager);
 				managedState.CancelCurrentPathRequest();
 			}
@@ -1712,7 +1718,7 @@ namespace Pathfinding {
 		void ClearPath() => ClearPath(entity);
 
 		static void ClearPath (Entity entity) {
-			if (entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) {
+			if (entityStorageCache.Update(_world, entity, out var entityManager, out var storage)) {
 				agentOffMeshLinkTraversalRO.Update(entityManager);
 
 				if (agentOffMeshLinkTraversalRO.HasComponent(storage)) {
@@ -1723,7 +1729,7 @@ namespace Pathfinding {
 					entityManager.RemoveComponent<AgentOffMeshLinkTraversal>(entity);
 					entityManager.RemoveComponent<ManagedAgentOffMeshLinkTraversal>(entity);
 					// We need to get the storage info again, because the entity will have been moved to another chunk
-					entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out entityManager, out storage);
+					entityStorageCache.Update(_world, entity, out entityManager, out storage);
 				}
 
 				entityManager.SetComponentEnabled<ReadyToTraverseOffMeshLink>(entity, false);
@@ -1813,7 +1819,7 @@ namespace Pathfinding {
 		/// Note: This static method is used if you only have an entity reference. If you are working with a GameObject, you can use the instance method instead.
 		/// </summary>
 		public static void SetPath (Entity entity, Path path, bool updateDestinationFromPath = true) {
-			var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+			var entityManager = _world.EntityManager;
 			if (!entityManager.Exists(entity)) throw new System.InvalidOperationException("Entity does not exist. You can only assign a path if the component is active and enabled.");
 
 			managedStateAccessRW.Update(entityManager);
@@ -1861,7 +1867,7 @@ namespace Pathfinding {
 			// The FollowerEntity works best with a ClosestAsSeenFromAboveSoft distance metric
 			path.nnConstraint.distanceMetric = DistanceMetric.ClosestAsSeenFromAboveSoft(movementPlane.value.up);
 
-			autoRepathPolicy.OnScheduledPathRecalculation(destination.destination, (float)World.DefaultGameObjectInjectionWorld.Time.ElapsedTime);
+			autoRepathPolicy.OnScheduledPathRecalculation(destination.destination, (float)_world.Time.ElapsedTime);
 			if (path.IsDone()) autoRepathPolicy.OnPathCalculated(path.error);
 			ManagedState.SetPath(path, managedState, in movementPlane, ref destination);
 
@@ -1916,7 +1922,7 @@ namespace Pathfinding {
 			if (clearPath) ClearPath();
 
 			if (entityExists) {
-				var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+				var entityManager = _world.EntityManager;
 				movementOutputAccessRW.Update(entityManager);
 				managedStateAccessRW.Update(entityManager);
 				movementPlaneAccessRO.Update(entityManager);
@@ -2021,7 +2027,7 @@ namespace Pathfinding {
 		/// Typically it is used by the editor to keep the entity's state in sync with the component's state.
 		/// </summary>
 		public void SyncWithEntity () {
-			if (!entityStorageCache.Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) return;
+			if (!entityStorageCache.Update(_world, entity, out var entityManager, out var storage)) return;
 
 			this.position = this.position;
 			this.autoRepath = this.autoRepath;
