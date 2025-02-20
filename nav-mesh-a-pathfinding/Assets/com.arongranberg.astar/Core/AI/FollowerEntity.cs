@@ -218,12 +218,12 @@ namespace Pathfinding {
 	[DisallowMultipleComponent]
 	public class FollowerEntity : VersionedMonoBehaviour, IAstarAI, ISerializationCallbackReceiver {
 		[SerializeField]
-		AgentCylinderShape shape = new AgentCylinderShape {
+		protected AgentCylinderShape shape = new AgentCylinderShape {
 			height = 2,
 			radius = 0.5f,
 		};
 		[SerializeField]
-		MovementSettings movement = new MovementSettings {
+		protected MovementSettings movement = new MovementSettings {
 			follower = new PIDMovement {
 				rotationSpeed = 600,
 				speed = 5,
@@ -242,13 +242,13 @@ namespace Pathfinding {
 		};
 
 		[SerializeField]
-		ManagedState managedState = new ManagedState {
+		protected ManagedState managedState = new ManagedState {
 			enableLocalAvoidance = false,
 			pathfindingSettings = PathRequestSettings.Default,
 		};
 
 		[SerializeField]
-		ECS.AutoRepathPolicy autoRepathBacking = ECS.AutoRepathPolicy.Default;
+		protected ECS.AutoRepathPolicy autoRepathBacking = ECS.AutoRepathPolicy.Default;
 
 		/// <summary>
 		/// Determines which direction the agent moves in.
@@ -256,17 +256,17 @@ namespace Pathfinding {
 		/// See: <see cref="orientation"/>
 		/// </summary>
 		[SerializeField]
-		OrientationMode orientationBacking;
+		protected OrientationMode orientationBacking;
 		[SerializeField]
-		MovementPlaneSource movementPlaneSourceBacking = MovementPlaneSource.Graph;
+		protected MovementPlaneSource movementPlaneSourceBacking = MovementPlaneSource.Graph;
 
 		/// <summary>\copydocref{updatePosition}</summary>
 		[SerializeField]
-		bool syncPosition = true;
+		protected bool syncPosition = true;
 
 		/// <summary>\copydocref{updateRotation}</summary>
 		[SerializeField]
-		bool syncRotation = true;
+		protected bool syncRotation = true;
 
 		/// <summary>Cached transform component</summary>
 		Transform tr;
