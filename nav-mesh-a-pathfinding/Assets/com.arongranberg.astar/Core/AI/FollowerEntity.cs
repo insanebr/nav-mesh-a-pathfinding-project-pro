@@ -278,7 +278,7 @@ namespace Pathfinding {
 		///
 		/// Check the class documentation to see which components it usually has, and what systems typically affect it.
 		/// </summary>
-		public Entity entity { [IgnoredByDeepProfiler] get; private set; }
+		public Entity entity { [IgnoredByDeepProfiler] get; protected set; }
 
 		static EntityAccess<DestinationPoint> destinationPointAccessRW = new EntityAccess<DestinationPoint>(false);
 		static EntityAccess<DestinationPoint> destinationPointAccessRO = new EntityAccess<DestinationPoint>(true);
