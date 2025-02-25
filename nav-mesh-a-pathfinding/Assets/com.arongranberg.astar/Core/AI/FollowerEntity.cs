@@ -308,6 +308,7 @@ namespace Pathfinding {
 		static EntityArchetype archetype;
 		static World achetypeWorld;
 
+		protected virtual bool ManualInitialize => false;
 		protected static World _world;
 
 		/// <summary>
@@ -315,7 +316,7 @@ namespace Pathfinding {
 		///
 		/// If you don't want to use the FollowerEntity MonoBehaviour, you can use this method to create an equivalent entity directly.
 		/// </summary>
-		public static Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
+		public Entity CreateEntity (float3 position, quaternion rotation, float scale, ref AgentCylinderShape shape, ref MovementSettings movement, ref ECS.AutoRepathPolicy autoRepath, ManagedState managedState, OrientationMode orientation, MovementPlaneSource movementPlaneSource, bool updatePosition, bool updateRotation, PhysicsScene physicsScene) {
 			// Keeping 'World.DefaultGameObjectInjectionWorld' initialization to tests in AStar repository.
 			if (_world == null)
 			{
@@ -355,13 +356,32 @@ namespace Pathfinding {
 			if (orientation == OrientationMode.YAxisForward) rotation = math.mul(rotation, SyncTransformsToEntitiesSystem.YAxisForwardToZAxisForward);
 
 			var entityManager = world.EntityManager;
-			var entity = entityManager.CreateEntity(archetype);
+			var entity = this.entity;
+			if (entityExists)
+			{
+				var componentTypes = archetype.GetComponentTypes();
+				foreach (var componentType in componentTypes)
+				{
+					if (entityManager.HasComponent(entity, componentType) == false)
+					{
+						entityManager.AddComponent(entity, componentType);
+					}
+				}
+
+				componentTypes.Dispose();
+			}
+			else
+			{
+				entity = entityManager.CreateEntity(archetype);
+#if UNITY_EDITOR
+				entityManager.SetName(entity, "Follower Entity");
+#endif
+			}
+
 			// This GameObject may be in a hierarchy, but the entity will not be. So we copy the world orientation to the entity's local transform component
 			entityManager.SetComponentData(entity, LocalTransform.FromPositionRotationScale(position, rotation, scale));
 			entityManager.SetComponentData(entity, new MovementState(position));
-#if UNITY_EDITOR
-			entityManager.SetName(entity, "Follower Entity");
-#endif
+
 			entityManager.SetComponentData(entity, new DestinationPoint {
 				destination = new float3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity),
 			});
@@ -411,7 +431,7 @@ namespace Pathfinding {
 		// Make sure Start runs every time after OnBeforeStart.
 		// When the game starts we don't want it to run immediately, because the graphs may not be scanned.
 		// But if the component is enabled at some later point in the game, it can run at the same time as OnEnable.
-		private void OnBeforeStart()
+		private void OnBeforeInitialize()
 		{
 			scratchReferenceCount++;
 			FindComponents();
@@ -430,9 +450,9 @@ namespace Pathfinding {
 					runtimeBakers[i].OnCreatedEntity(_world, entity);
 		}
 
-		void Start ()
+		public void Initialize()
 		{
-			OnBeforeStart();
+			OnBeforeInitialize();
 
 			var entityManager = _world.EntityManager;
 			managedStateAccessRW.Update(entityManager);
@@ -479,6 +499,14 @@ namespace Pathfinding {
 					// Make the end of the path be unset
 					managedState.pathTracer.UpdateEnd(Vector3.positiveInfinity, PathTracer.RepairQuality.High, movementPlane.value, null, null);
 				}
+			}
+		}
+
+		void Start ()
+		{
+			if (ManualInitialize == false)
+			{
+				Initialize();
 			}
 		}
 
