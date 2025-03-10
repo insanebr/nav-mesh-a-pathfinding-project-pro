@@ -78,7 +78,7 @@ namespace Pathfinding.ECS {
 		/// </summary>
 		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 		public bool GetComponentData<A>(Entity entity, ref EntityAccess<A> access, out ComponentRef<A> value) where A : unmanaged, IComponentData {
-			if (Update(World.DefaultGameObjectInjectionWorld, entity, out var entityManager, out var storage)) {
+			if (Update(CustomWorld.World, entity, out var entityManager, out var storage)) {
 				access.Update(entityManager);
 				unsafe {
 					value = new ComponentRef<A>((byte*)UnsafeUtility.AddressOf(ref access[storage]));

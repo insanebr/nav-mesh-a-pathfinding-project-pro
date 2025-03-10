@@ -206,8 +206,8 @@ namespace Pathfinding {
 				if (targets.Length == 1) {
 					var ai = target as FollowerEntity;
 					var simulator = RVOSimulator.active?.GetSimulator();
-					if (simulator != null && ai.entityExists && World.DefaultGameObjectInjectionWorld.EntityManager.HasComponent<AgentIndex>(ai.entity)) {
-						var agentIndex = World.DefaultGameObjectInjectionWorld.EntityManager.GetComponentData<AgentIndex>(ai.entity);
+					if (simulator != null && ai.entityExists && CustomWorld.World.EntityManager.HasComponent<AgentIndex>(ai.entity)) {
+						var agentIndex = CustomWorld.World.EntityManager.GetComponentData<AgentIndex>(ai.entity);
 						simulator.BlockUntilSimulationStepDone();
 						if (agentIndex.TryGetIndex(ref simulator.simulationData, out var index)) {
 							if (simulator.outputData.numNeighbours[index] >= simulator.simulationData.maxNeighbours[index]) {
